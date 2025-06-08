@@ -1,0 +1,71 @@
+Recently I needed to add multiple instances to a Patch Group.
+This is done by adding a tag to each instances where the key is Patch Group and the value is a name of your choice.
+If you use AWS’s SSM service, you know that you are only able to add one tag at a time if you use the console. This short script will show you how to tag multiple instances at once.
+
+
+> [!info] Difference between an EC2 Instance and Managed Instance
+>* EC2 Instance – a regular EC2 instance. Represented by an instance ID that starts with i-
+>* Managed Instance – An on-premise or non EC2 managed instance that you can manage in SSM. Represented by and instance ID that starts with mi-
+
+
+<u>Prerequisites</u>
+
+- Boto3 installed
+- The appropriate IAM permissions
+
+I want to add all of my Amazon Linux 2 machines to their own Patch Group.
+In my example, I only add the tags to EC2 instances, but the same logic applies to managed instances as well.
+
+```python
+import boto3
+ssm_client = boto3.client('ssm')
+ec2_client = boto3.client('ec2')
+ 
+tags = {'Key': 'Patch Group',
+        'Value': 'AL2-Test'
+}
+ 
+all_instances = []
+for instance in ssm_client.describe_instance_information()['InstanceInformationList']:
+        if instance['PlatformName'] == 'Amazon Linux' and instance['PlatformVersion'] == '2':
+                all_instances.append(instance['InstanceId'])
+ 
+for instance in all_instances:
+        ec2_client.create_tags(
+                # DryRun=True,
+                Resources=[instance],
+                Tags=[tags]
+        )
+```
+
+> [!note]
+> Choose whatever tags you want:
+> ```py
+> tags = {'Key': 'Patch Group',
+> Value': 'AL2-Test'}
+> ```
+> You can also use more tags.
+
+The first loop iterates over all of the instances in SSM, and if the instance’s OS is Amazon Linux 2, it gets added to a list of instances.
+
+The second loop goes over the list of instances we just filled and simply creates the tags we configured.
+As you can see, by running we get our desired result:
+
+![](images/ssm1.png)
+
+The same logic can be applied to SSM Managed Instances. Instead of using the EC2 boto3 client, we can utilize the same SSM client we already have and use the [add_tags_to_resource](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ssm.html#SSM.Client.add_tags_to_resource) function:
+```python
+response = client.add_tags_to_resource(
+    ResourceType='Document'|'ManagedInstance'|'MaintenanceWindow'|'Parameter'|'PatchBaseline'|'OpsItem'|'OpsMetadata',
+    ResourceId='string',
+    Tags=[
+        {
+            'Key': 'string',
+            'Value': 'string'
+        },
+    ]
+)
+```
+
+That’s it.
+Hope it has been helpful to someone 😊
