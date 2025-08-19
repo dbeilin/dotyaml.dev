@@ -1,6 +1,6 @@
 ---
 title: Kargo Demo Project
-draft: false
+draft: true
 tags:
   - kargo
 ---
